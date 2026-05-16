@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 're
 import { TopBar } from '../../components/layout/TopBar';
 import { Avatar, Badge } from '../../components/ui/index';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
+import { useContext } from 'react';
 
 interface Props { navigation: any; logout: () => void; }
 
@@ -40,9 +41,8 @@ export function SettingsScreen({ navigation, logout }: Props) {
 
         <Text style={s.section}>SUPORTE</Text>
         <Row icon="ℹ️"  label="Sobre o app" sub="RotaLog v1.0.0"  onPress={() => {}} />
-        <Row icon="🛡️" label="Privacidade"  sub="Política e termos" onPress={() => {}} />
-        <Row icon="📞" label="Contato"      sub="Fale conosco"      onPress={() => {}} />
-
+        <Row icon="🛡️" label="Privacidade" sub="Política e termos" onPress={() => navigation.navigate('Privacy')} />
+        <Row icon="📞" label="Contato"     sub="Fale conosco"      onPress={() => navigation.navigate('Contact')} />
         <Text style={s.section}> </Text>
         <Row icon="⇥" label="Sair da conta" danger onPress={logout} />
       </ScrollView>

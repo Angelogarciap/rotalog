@@ -54,7 +54,8 @@ export function CartScreen({ navigation, cart, updateQty, total }: Props) {
               <Text style={s.totalLabel}>Total</Text>
               <Text style={s.totalValue}>R$ {total.toFixed(2)}</Text>
             </View>
-            <Button label="FINALIZAR PEDIDO" onPress={() => {}} full />
+            <Button label="FINALIZAR PEDIDO" 
+            onPress={() => navigation.navigate('Payment', { total, orderId: `#${Date.now()}` })}/>
           </View>
         </>
       )}
