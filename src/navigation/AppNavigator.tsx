@@ -6,6 +6,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { PrivacyScreen } from '../screens/Settings/PrivacyTermScreen';
+import { ContactScreen } from '../screens/Settings/ContactScreen';
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 import { LoginScreen, RecoverScreen, RegisterScreen } from '../screens/Auth/AuthScreens';
@@ -19,6 +21,8 @@ import { ProfileScreen }  from '../screens/Settings/ProfileScreen';
 import { DeliveryScreen } from '../screens/Delivery/DeliveryScreen';
 import { ProductScreen }  from '../screens/Product/ProductScreen';
 import { SupplierScreen } from '../screens/Supplier/SupplierScreen';
+import { PaymentScreen } from '../screens/Payment/PaymentScreen';
+
 
 // ── Stacks ────────────────────────────────────────────────────────────────────
 const AuthStack = createNativeStackNavigator();
@@ -49,6 +53,9 @@ function HomeNavigator() {
       <HomeStack.Screen name="Search"   children={(props) => <SearchScreen   {...props} addToCart={addToCart} />} />
       <HomeStack.Screen name="History"  component={HistoryScreen} />
       <HomeStack.Screen name="Profile"  component={ProfileScreen} />
+      <HomeStack.Screen name="Payment" component={PaymentScreen} />
+      <HomeStack.Screen name="Privacy" component={PrivacyScreen} />
+      <HomeStack.Screen name="Contact" component={ContactScreen} />
     </HomeStack.Navigator>
   );
 }
