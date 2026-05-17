@@ -1,9 +1,11 @@
-import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { TopBar } from '../../components/layout/TopBar';
 import { Button } from '../../components/ui/Button';
 import { CartItem } from '../../hooks/useCart';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
+import { api } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
   navigation: any;
@@ -13,6 +15,33 @@ interface Props {
 }
 
 export function CartScreen({ navigation, cart, updateQty, total }: Props) {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(false);
+
+  const handleFinalizarPedido = async () => {
+    if (cart.length === 0) return;
+    setLoading(true);
+    try {
+      const items = cart.map(i => ({
+        productId: i.id,
+        quantity: i.qty,
+      }));
+      const { data } = await api.post('/api/v1/orders', {
+        buyerId: user?.id,
+        items,
+      });
+      const orderId = data.id ?? data.orderId ?? `${Date.now()}`;
+      navigation.navigate('Payment', { total, orderId });
+    } catch (err: any) {
+      Alert.alert(
+        'Erro ao criar pedido',
+        err?.response?.data?.message ?? 'Não foi possível criar o pedido. Tente novamente.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View style={s.container}>
       <TopBar title={`Carrinho (${cart.length})`} onBack={() => navigation.goBack()} />
@@ -54,8 +83,11 @@ export function CartScreen({ navigation, cart, updateQty, total }: Props) {
               <Text style={s.totalLabel}>Total</Text>
               <Text style={s.totalValue}>R$ {total.toFixed(2)}</Text>
             </View>
-            <Button label="FINALIZAR PEDIDO" 
-            onPress={() => navigation.navigate('Payment', { total, orderId: `#${Date.now()}` })}/>
+            <Button
+              label="FINALIZAR PEDIDO"
+              onPress={handleFinalizarPedido}
+              loading={loading}
+            />
           </View>
         </>
       )}

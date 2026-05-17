@@ -1,14 +1,62 @@
 import React, { useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Input } from '../../components/ui/Input';
-import { PRODUTOS, Produto } from '../../data/mock';
+import { Produto } from '../../data/mock';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
+import { api } from '../../services/api';
 
 interface Props { navigation: any; addToCart: (p: Produto) => void; }
 
 export function SearchScreen({ navigation, addToCart }: Props) {
-  const [q, setQ] = useState('');
-  const results = PRODUTOS.filter(p => q && p.nome.toLowerCase().includes(q.toLowerCase()));
+  const [q, setQ]           = useState('');
+  const [results, setResults] = useState<Produto[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+
+  const handleSearch = async (text: string) => {
+    setQ(text);
+    if (!text.trim()) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    setLoading(true);
+    setSearched(true);
+    try {
+      // Busca todos os fornecedores e filtra produtos pelo nome
+      const { data: suppliers } = await api.get('/api/v1/suppliers');
+      const supplierList = Array.isArray(suppliers) ? suppliers : suppliers.content ?? suppliers.suppliers ?? [];
+      const found: Produto[] = [];
+      await Promise.all(
+        supplierList.slice(0, 10).map(async (s: any) => {
+          try {
+            const { data } = await api.get(`/api/v1/suppliers/${s.id}/products`);
+            const prods = Array.isArray(data) ? data : data.content ?? data.products ?? [];
+            prods.forEach((p: any) => {
+              const nome = p.name ?? p.nome ?? '';
+              if (nome.toLowerCase().includes(text.toLowerCase())) {
+                found.push({
+                  id: p.id,
+                  nome,
+                  preco: p.price ?? p.preco ?? 0,
+                  unidade: p.unit ?? p.unidade ?? 'un',
+                  fornecedor: s.name ?? s.nome ?? '',
+                  img: p.img ?? '📦',
+                  categoria: p.category ?? p.categoria ?? '',
+                  estoque: (p.stockQuantity ?? p.quantity ?? 1) > 0,
+                });
+              }
+            });
+          } catch { /* ignora */ }
+        })
+      );
+      setResults(found);
+    } catch {
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={s.container}>
@@ -20,7 +68,7 @@ export function SearchScreen({ navigation, addToCart }: Props) {
           <Input
             placeholder="Buscar produtos, fornecedores..."
             value={q}
-            onChangeText={setQ}
+            onChangeText={handleSearch}
             containerStyle={{ marginBottom: 0 }}
             autoFocus
           />
@@ -32,19 +80,23 @@ export function SearchScreen({ navigation, addToCart }: Props) {
           <Text style={{ fontSize: 48, marginBottom: 12 }}>⌕</Text>
           <Text style={s.emptySub}>Digite para buscar produtos ou fornecedores</Text>
         </View>
+      ) : loading ? (
+        <View style={s.empty}><ActivityIndicator color={Colors.green} size="large" /></View>
       ) : (
         <FlatList
           data={results}
-          keyExtractor={i => String(i.id)}
+          keyExtractor={i => `${i.id}-${i.fornecedor}`}
           contentContainerStyle={s.list}
           ListHeaderComponent={
             <Text style={s.count}>{results.length} resultado{results.length !== 1 ? 's' : ''} para "{q}"</Text>
           }
           ListEmptyComponent={
-            <View style={s.empty}>
-              <Text style={{ fontSize: 40, marginBottom: 12 }}>🔍</Text>
-              <Text style={s.emptySub}>Nenhum resultado encontrado</Text>
-            </View>
+            searched ? (
+              <View style={s.empty}>
+                <Text style={{ fontSize: 40, marginBottom: 12 }}>🔍</Text>
+                <Text style={s.emptySub}>Nenhum resultado encontrado</Text>
+              </View>
+            ) : null
           }
           renderItem={({ item: p }) => (
             <TouchableOpacity style={s.result} onPress={() => navigation.navigate('Product', { produto: p })}>

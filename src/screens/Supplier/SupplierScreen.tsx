@@ -1,50 +1,109 @@
-import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { TopBar } from '../../components/layout/TopBar';
 import { Button } from '../../components/ui/Button';
-import { FORNECEDORES, PRODUTOS, Fornecedor, Produto } from '../../data/mock';
+import { Produto } from '../../data/mock';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
+import { api } from '../../services/api';
 
 interface Props { navigation: any; route: any; addToCart: (p: Produto) => void; }
 
 export function SupplierScreen({ navigation, route, addToCart }: Props) {
-  const f: Fornecedor = route?.params?.fornecedor ?? FORNECEDORES[0];
-  const produtos = PRODUTOS.slice(0, 4);
+  const fornecedor = route?.params?.fornecedor ?? {};
+  const supplierId = fornecedor.id;
+
+  const nome      = fornecedor.name      ?? fornecedor.nome      ?? '';
+  const categoria = fornecedor.category  ?? fornecedor.categoria ?? '';
+  const nota      = fornecedor.rating    ?? fornecedor.nota      ?? 0;
+  const entregas  = fornecedor.deliveries ?? fornecedor.entregas ?? 0;
+  const distancia = fornecedor.distance  ?? fornecedor.distancia ?? '-';
+  const tempo     = fornecedor.deliveryTime ?? fornecedor.tempo  ?? '-';
+  const img       = fornecedor.img       ?? '🏪';
+  const cor       = fornecedor.cor       ?? Colors.green;
+
+  const [produtos, setProdutos] = useState<any[]>([]);
+  const [loading, setLoading]   = useState(true);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        const { data } = await api.get(`/api/v1/suppliers/${supplierId}/products`);
+        const list = Array.isArray(data) ? data : data.content ?? data.products ?? [];
+        setProdutos(list);
+      } catch {
+        setProdutos([]);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (supplierId) {
+      loadProducts();
+    } else {
+      setLoading(false);
+    }
+  }, [supplierId]);
+
+  const toCartItem = (p: any): Produto => ({
+    id: p.id,
+    nome: p.name ?? p.nome ?? '',
+    preco: p.price ?? p.preco ?? 0,
+    unidade: p.unit ?? p.unidade ?? 'un',
+    fornecedor: nome,
+    img: p.img ?? '📦',
+    categoria: p.category ?? p.categoria ?? '',
+    estoque: (p.stockQuantity ?? p.quantity ?? p.estoque ?? 1) > 0,
+  });
 
   return (
     <View style={s.container}>
       <TopBar title="" onBack={() => navigation.goBack()} transparent />
       <ScrollView contentContainerStyle={s.scroll}>
         {/* Hero */}
-        <View style={[s.hero, { backgroundColor: `${f.cor}11` }]}>
-          <Text style={{ fontSize: 64, marginBottom: 12 }}>{f.img}</Text>
-          <Text style={s.name}>{f.nome}</Text>
-          <Text style={s.cat}>{f.categoria}</Text>
+        <View style={[s.hero, { backgroundColor: `${cor}11` }]}>
+          <Text style={{ fontSize: 64, marginBottom: 12 }}>{img}</Text>
+          <Text style={s.name}>{nome}</Text>
+          <Text style={s.cat}>{categoria}</Text>
           <View style={s.stats}>
-            {([['Avaliação', f.nota], ['Entregas', f.entregas], ['Distância', f.distancia]] as [string, any][]).map(([k, v]) => (
+            {([['Avaliação', nota], ['Entregas', entregas], ['Distância', distancia]] as [string, any][]).map(([k, v]) => (
               <View key={k} style={{ alignItems: 'center' }}>
                 <Text style={s.statVal}>{v}</Text>
                 <Text style={s.statKey}>{k}</Text>
               </View>
             ))}
           </View>
-          <View style={s.etaBadge}>
-            <Text style={s.etaTxt}>🕐 Entrega estimada: <Text style={{ color: Colors.text, fontWeight: '700' }}>{f.tempo}</Text></Text>
-          </View>
+          {tempo !== '-' && (
+            <View style={s.etaBadge}>
+              <Text style={s.etaTxt}>🕐 Entrega estimada: <Text style={{ color: Colors.text, fontWeight: '700' }}>{tempo}</Text></Text>
+            </View>
+          )}
         </View>
 
         {/* Produtos */}
         <Text style={s.section}>— PRODUTOS DISPONÍVEIS</Text>
-        <View style={s.grid}>
-          {produtos.map(p => (
-            <View key={p.id} style={s.prodCard}>
-              <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 8 }}>{p.img}</Text>
-              <Text style={s.prodName} numberOfLines={2}>{p.nome}</Text>
-              <Text style={s.prodPrice}>R$ {p.preco.toFixed(2)}/{p.unidade}</Text>
-              <Button label="+ Adicionar" onPress={() => addToCart(p)} sm full style={{ marginTop: 8 }} />
-            </View>
-          ))}
-        </View>
+        {loading ? (
+          <ActivityIndicator color={Colors.green} style={{ marginTop: 20 }} />
+        ) : produtos.length === 0 ? (
+          <Text style={{ color: Colors.muted, textAlign: 'center', marginTop: 20 }}>
+            Nenhum produto disponível.
+          </Text>
+        ) : (
+          <View style={s.grid}>
+            {produtos.map(p => {
+              const item = toCartItem(p);
+              return (
+                <View key={p.id} style={s.prodCard}>
+                  <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: 8 }}>{item.img}</Text>
+                  <Text style={s.prodName} numberOfLines={2}>{item.nome}</Text>
+                  <Text style={s.prodPrice}>R$ {item.preco.toFixed(2)}/{item.unidade}</Text>
+                  {item.estoque
+                    ? <Button label="+ Adicionar" onPress={() => addToCart(item)} sm full style={{ marginTop: 8 }} />
+                    : <Button label="Indisponível" onPress={() => {}} sm full disabled style={{ marginTop: 8 }} />
+                  }
+                </View>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
     </View>
   );
