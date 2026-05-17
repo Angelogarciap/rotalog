@@ -3,12 +3,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api } from '../services/api';
 
 export interface User {
-  nome: string;
-  name: string
+  id: string;
+  name: string;
   email: string;
-  telefone: string;
+  role: string;
+  supplierId: string | null;
+  telefone?: string;
 }
-
 interface AuthContextData {
   user: User | null;
   loading: boolean;
@@ -46,10 +47,8 @@ useEffect(() => {
  const login = useCallback(async (email: string, senha: string) => {
   setLoading(true);
   try {
-    const { data } = await api.post('/api/v1/auth/login', {
-      email,
-      password: senha, 
-    });
+    const credentials = { email, password: senha };
+    const { data } = await api.post('/api/v1/auth/login', credentials);
     await AsyncStorage.setItem('token', data.accessToken);
     await AsyncStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
@@ -63,11 +62,8 @@ useEffect(() => {
 const register = useCallback(async (dados: any) => {
   setLoading(true);
   try {
-    const { data } = await api.post('/api/v1/auth/register', {
-      email: dados.email,
-      password: dados.senha,
-      name: dados.nome,
-    });
+    const credentials = { email: dados.email, name: dados.nome, password: dados.senha };
+    const { data } = await api.post('/api/v1/auth/register', credentials);
     await AsyncStorage.setItem('token', data.accessToken);
     await AsyncStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);
