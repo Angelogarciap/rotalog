@@ -3,13 +3,44 @@ import { View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet } from 're
 import { TopBar } from '../../components/layout/TopBar';
 import { Avatar, Badge } from '../../components/ui/index';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
-import { useContext } from 'react';
+import * as Location from 'expo-location';
+import { Alert } from 'react-native';
+import { useAuth } from '@/context/AuthContext';
 
 interface Props { navigation: any; logout: () => void; }
 
 export function SettingsScreen({ navigation, logout }: Props) {
+  const {user} = useAuth();
   const [notif, setNotif] = useState(true);
   const [loc, setLoc]     = useState(true);
+
+  // Verifica se já tem permissão ao abrir a tela
+React.useEffect(() => {
+  Location.getForegroundPermissionsAsync().then(({ status }) => {
+    setLoc(status === 'granted');
+  });
+}, []);
+
+const handleLocToggle = async () => {
+  if (loc) {
+    // Não dá pra revogar permissão pelo app — redireciona pras configurações do celular
+    Alert.alert(
+      'Desativar localização',
+      'Para desativar, vá em Configurações do celular → RotaLog → Localização.',
+      [{ text: 'OK' }]
+    );
+  } else {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      setLoc(true);
+    } else {
+      Alert.alert(
+        'Permissão negada',
+        'Ative a localização nas configurações do celular para usar essa função.'
+      );
+    }
+  }
+};
 
   return (
     <View style={s.container}>
@@ -20,8 +51,8 @@ export function SettingsScreen({ navigation, logout }: Props) {
         <View style={s.profileCard}>
           <Avatar size={52} letter="O" />
           <View style={{ flex: 1 }}>
-            <Text style={s.profileName}>Olga Mendes</Text>
-            <Text style={s.profileEmail}>olga@email.com</Text>
+            <Text style={s.profileName}>{user?.name ?? user?.nome ?? 'Usuário'}</Text>
+            <Text style={s.profileEmail}>{user?.email ?? ''}</Text>
             <Badge label="Comprador" />
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={s.editBtn}>
@@ -36,7 +67,7 @@ export function SettingsScreen({ navigation, logout }: Props) {
 
         <Text style={s.section}>PREFERÊNCIAS</Text>
         <Row icon="🔔" label="Notificações" sub="Atualizações de pedidos" toggle={() => setNotif(v => !v)} toggled={notif} />
-        <Row icon="📍" label="Localização"  sub="Fornecedores próximos"   toggle={() => setLoc(v => !v)}   toggled={loc}   />
+        <Row icon="📍" label="Localização" sub="Fornecedores próximos" toggle={handleLocToggle} toggled={loc} />
         <Row icon="🌙" label="Tema escuro"  sub="Sempre ativado"           toggle={() => {}}               toggled={true}  />
 
         <Text style={s.section}>SUPORTE</Text>

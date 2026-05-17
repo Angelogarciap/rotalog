@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,8 +7,6 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { PrivacyScreen } from '../screens/Settings/PrivacyTermScreen';
-import { ContactScreen } from '../screens/Settings/ContactScreen';
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 import { LoginScreen, RecoverScreen, RegisterScreen } from '../screens/Auth/AuthScreens';
@@ -18,17 +17,45 @@ import { HistoryScreen }  from '../screens/History/HistoryScreen';
 import { SearchScreen }   from '../screens/Search/SearchScreen';
 import { SettingsScreen } from '../screens/Settings/SettingsScreen';
 import { ProfileScreen }  from '../screens/Settings/ProfileScreen';
+import { PrivacyScreen }  from '../screens/Settings/PrivacyTermScreen';
+import { ContactScreen }  from '../screens/Settings/ContactScreen';
 import { DeliveryScreen } from '../screens/Delivery/DeliveryScreen';
 import { ProductScreen }  from '../screens/Product/ProductScreen';
 import { SupplierScreen } from '../screens/Supplier/SupplierScreen';
-import { PaymentScreen } from '../screens/Payment/PaymentScreen';
+import { PaymentScreen }  from '../screens/Payment/PaymentScreen';
 
+
+// ── Param Lists ───────────────────────────────────────────────────────────────
+export type AuthStackParamList = {
+  Login:    undefined;
+  Recover:  undefined;
+  Register: undefined;
+};
+
+export type HomeStackParamList = {
+  HomeMain: undefined;
+  Catalog:  undefined;
+  Product:  { produto: any };
+  Supplier: { fornecedor: any };
+  Search:   undefined;
+  History:  undefined;
+  Payment:  { total: number; orderId: string };
+};
+
+export type SettingsStackParamList = {
+  SettingsMain: undefined;
+  Profile:      undefined;
+  Privacy:      undefined;
+  Contact:      undefined;
+  History:      undefined;
+};
 
 // ── Stacks ────────────────────────────────────────────────────────────────────
-const AuthStack = createNativeStackNavigator();
-const HomeStack = createNativeStackNavigator();
-const Tab       = createBottomTabNavigator();
-const Root      = createNativeStackNavigator();
+const AuthStack     = createNativeStackNavigator<AuthStackParamList>();
+const HomeStack     = createNativeStackNavigator<HomeStackParamList>();
+const SettingsStack = createNativeStackNavigator<SettingsStackParamList>();
+const Tab           = createBottomTabNavigator();
+const Root          = createNativeStackNavigator();
 
 // ── Auth Flow ─────────────────────────────────────────────────────────────────
 function AuthNavigator() {
@@ -51,12 +78,22 @@ function HomeNavigator() {
       <HomeStack.Screen name="Product"  children={(props) => <ProductScreen  {...props} addToCart={addToCart} />} />
       <HomeStack.Screen name="Supplier" children={(props) => <SupplierScreen {...props} addToCart={addToCart} />} />
       <HomeStack.Screen name="Search"   children={(props) => <SearchScreen   {...props} addToCart={addToCart} />} />
-      <HomeStack.Screen name="History"  component={HistoryScreen} />
-      <HomeStack.Screen name="Profile"  component={ProfileScreen} />
-      <HomeStack.Screen name="Payment" component={PaymentScreen} />
-      <HomeStack.Screen name="Privacy" component={PrivacyScreen} />
-      <HomeStack.Screen name="Contact" component={ContactScreen} />
+      <HomeStack.Screen name="Payment"  component={PaymentScreen} />
     </HomeStack.Navigator>
+  );
+}
+
+// ── Settings Stack ────────────────────────────────────────────────────────────
+function SettingsNavigator() {
+  const { logout } = useAuth();
+  return (
+    <SettingsStack.Navigator screenOptions={{ headerShown: false }}>
+      <SettingsStack.Screen name="SettingsMain" children={(props) => <SettingsScreen {...props} logout={logout} />} />
+      <SettingsStack.Screen name="Profile"      component={ProfileScreen} />
+      <SettingsStack.Screen name="Privacy"      component={PrivacyScreen} />
+      <SettingsStack.Screen name="Contact"      component={ContactScreen} />
+      <SettingsStack.Screen name="History" component={HistoryScreen} />
+    </SettingsStack.Navigator>
   );
 }
 
@@ -101,7 +138,6 @@ function CustomTabBar({ state, navigation }: any) {
 // ── Main Tabs ─────────────────────────────────────────────────────────────────
 function MainNavigator() {
   const { cart, updateQty, total } = useCart();
-  const { logout } = useAuth();
 
   return (
     <Tab.Navigator
@@ -111,7 +147,7 @@ function MainNavigator() {
       <Tab.Screen name="HomeTab"     component={HomeNavigator} />
       <Tab.Screen name="DeliveryTab" component={DeliveryScreen} />
       <Tab.Screen name="CartTab"     children={(props) => <CartScreen {...props} cart={cart} updateQty={updateQty} total={total} />} />
-      <Tab.Screen name="SettingsTab" children={(props) => <SettingsScreen {...props} logout={logout} />} />
+      <Tab.Screen name="SettingsTab" component={SettingsNavigator} />
     </Tab.Navigator>
   );
 }
