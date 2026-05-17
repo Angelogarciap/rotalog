@@ -1,7 +1,10 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { api } from '@/services/api';
 
 export interface User {
   nome: string;
+  name: string
   email: string;
   telefone: string;
 }
@@ -18,27 +21,72 @@ interface AuthContextData {
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [user, setUser]       = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // começa true pra verificar sessão
 
-  const login = useCallback(async (email: string, _senha: string) => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    setUser({ nome: 'Olga Mendes', email, telefone: '(92) 99999-0000' });
+  // Ao abrir o app, verifica se já tem sessão salva
+useEffect(() => {
+  async function loadSession() {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        const { data } = await api.get('/api/v1/auth/me');
+        setUser(data);
+        await AsyncStorage.setItem('user', JSON.stringify(data));
+      }
+    } catch {
+      await AsyncStorage.removeItem('token');
+    } finally {
+      setLoading(false);
+    }
+  }
+  loadSession();
+}, []);
+
+ const login = useCallback(async (email: string, senha: string) => {
+  setLoading(true);
+  try {
+    const { data } = await api.post('/api/v1/auth/login', {
+      email,
+      password: senha, // ← back usa "password", não "senha"
+    });
+    await AsyncStorage.setItem('token', data.accessToken);
+    await AsyncStorage.setItem('user', JSON.stringify(data.user));
+    setUser(data.user);
+  } catch {
+    throw new Error('Email ou senha incorretos');
+  } finally {
     setLoading(false);
-  }, []);
+  }
+}, []);
 
-  const register = useCallback(async (dados: any) => {
-    setLoading(true);
-    await new Promise(r => setTimeout(r, 800));
-    setUser({ nome: dados.nome, email: dados.email, telefone: dados.telefone });
+const register = useCallback(async (dados: any) => {
+  setLoading(true);
+  try {
+    const { data } = await api.post('/api/v1/auth/register', {
+      email: dados.email,
+      password: dados.senha,
+      name: dados.nome,
+    });
+    await AsyncStorage.setItem('token', data.accessToken);
+    await AsyncStorage.setItem('user', JSON.stringify(data.user));
+    setUser(data.user);
+  } catch {
+    throw new Error('Erro ao criar conta');
+  } finally {
     setLoading(false);
-  }, []);
+  }
+}, []);
 
-  const logout = useCallback(() => setUser(null), []);
+  const logout = useCallback(async () => {
+    await AsyncStorage.removeItem('token');
+    await AsyncStorage.removeItem('user');
+    setUser(null);
+  }, []);
 
   const recoverPassword = useCallback(async (_email: string) => {
     setLoading(true);
+    // Mock — substituir: await api.post('/api/v1/auth/forgot-password', { email })
     await new Promise(r => setTimeout(r, 800));
     setLoading(false);
     return true;
