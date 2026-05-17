@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '@/services/api';
+import { api } from '../services/api';
 
 export interface User {
   nome: string;
@@ -48,7 +48,7 @@ useEffect(() => {
   try {
     const { data } = await api.post('/api/v1/auth/login', {
       email,
-      password: senha, // ← back usa "password", não "senha"
+      password: senha, 
     });
     await AsyncStorage.setItem('token', data.accessToken);
     await AsyncStorage.setItem('user', JSON.stringify(data.user));
