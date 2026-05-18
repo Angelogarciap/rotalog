@@ -5,17 +5,22 @@ import { HomeStackParamList } from '../../navigation/AppNavigator';
 import { Badge, Avatar, Rating } from '../../components/ui/index';
 import { FORNECEDORES, CATEGORIAS } from '../../data/mock';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
+import { useAuth } from '../../context/AuthContext';
+
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'HomeMain'>;
 
 export function HomeScreen({ navigation }: Props) {
   const [catAtiva, setCatAtiva] = useState('Todos');
   const [busca, setBusca] = useState('');
+  const { user } = useAuth();
+
 
   const fornFiltrados = FORNECEDORES.filter(f =>
     (catAtiva === 'Todos' || f.categoria.includes(catAtiva)) &&
     f.nome.toLowerCase().includes(busca.toLowerCase())
   );
+
 
   return (
     <View style={s.container}>
@@ -24,9 +29,9 @@ export function HomeScreen({ navigation }: Props) {
         <View style={s.headerTop}>
           <View>
             <Text style={s.location}>📍 R. das Acácias, 45</Text>
-            <Text style={s.greeting}>Bom dia, Olga! 👋</Text>
+            <Text style={s.greeting}>Olá, {user?.name ?? 'Usuário'}! 👋</Text>
           </View>
-          <Avatar letter="O" size={40} />
+         <Avatar letter={(user?.name ?? 'U').charAt(0)} size={40} />
         </View>
 
         {/* Search bar */}

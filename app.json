@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "android": {
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCpBNBvune4GwNdKHIAmOdvZ-wXus3AmG4s"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "ios": {
+      "config": {
+        "googleMapsApiKey": "AIzaSyCpBNBvune4GwNdKHIAmOdvZ-wXus3AmG4s"
+      },
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para rastrear a entrega."
+      }
+    }
+  }
+}
+

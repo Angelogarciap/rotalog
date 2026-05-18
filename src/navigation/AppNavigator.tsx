@@ -7,6 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors, FontSize } from '../theme';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { DriverNavigator } from './DriverNavigator';
 
 // ── Screens ───────────────────────────────────────────────────────────────────
 import { LoginScreen, RecoverScreen, RegisterScreen } from '../screens/Auth/AuthScreens';
@@ -154,20 +155,23 @@ function MainNavigator() {
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 export function AppNavigator() {
-  const { user } = useAuth();
+  const { user, perfil } = useAuth();
+  
 
   return (
-    <NavigationContainer>
+   <NavigationContainer>
       <Root.Navigator screenOptions={{ headerShown: false }}>
-        {!user
-          ? <Root.Screen name="Auth" component={AuthNavigator} />
-          : <Root.Screen name="Main" component={MainNavigator} />
-        }
+        {!user ? (
+          <Root.Screen name="Auth" component={AuthNavigator} />
+        ) : perfil === 'DRIVER' ? (
+          <Root.Screen name="Driver" component={DriverNavigator} />
+        ) : (
+          <Root.Screen name="Main" component={MainNavigator} />
+        )}
       </Root.Navigator>
     </NavigationContainer>
   );
 }
-
 // ── Styles ────────────────────────────────────────────────────────────────────
 const tb = StyleSheet.create({
   bar:         { flexDirection: 'row', backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border, paddingBottom: 12, paddingTop: 8 },

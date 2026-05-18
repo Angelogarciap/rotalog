@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import MapView, { Marker } from 'react-native-maps';
+import { Client } from '@stomp/stompjs';
 import { TopBar } from '../../components/layout/TopBar';
 import { Badge } from '../../components/ui/index';
 import { Button } from '../../components/ui/Button';
@@ -8,56 +10,114 @@ import { Colors, FontSize, Radius, Spacing } from '../../theme';
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Fase = 1 | 2 | 3;
 
-// ── Mock — substituir por dados reais da API + WebSocket ──────────────────────
+// ── Mock — substituir por dados reais do pedido ───────────────────────────────
 const PEDIDO = {
   id: '#4522',
+  orderId: 'order-001',
   produto: 'Picanha Angus 4kg',
   fornecedor: 'BovPrime',
   posicaoNaFila: 2,
   totalEntregas: 5,
-  eta: '~18 min',
+  // Coordenada do destino (endereço do comprador)
+  destinoLat: -3.102,
+  destinoLng: -60.015,
 };
 
 const STEPS = ['Confirmado', 'Em rota', 'Entregue'];
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function DeliveryScreen({ navigation }: { navigation: any }) {
-  // TODO: substituir pelo status real vindo do WebSocket /topic/tracking/{orderId}
-  const [fase, setFase] = useState<Fase>(1);
+  const [fase, setFase]                   = useState<Fase>(1);
+  const [eta, setEta]                     = useState('~18 min');
+  const [entregadorPos, setEntregadorPos] = useState<{ lat: number; lng: number } | null>(null);
+  const [conectado, setConectado]         = useState(false);
+  const clientRef                         = useRef<Client | null>(null);
 
   const etapa  = fase === 1 ? 1 : fase === 2 ? 2 : 3;
   const status = fase === 1 ? 'Em separação' : fase === 2 ? 'Em rota' : 'Próximo';
+
+  // Conecta WebSocket nas fases 2 e 3
+  useEffect(() => {
+    if (fase < 2) return;
+
+    const client = new Client({
+      brokerURL: 'wss://api.rotalog.madebyhermes.com/ws',
+      reconnectDelay: 5000,
+      onConnect: () => {
+        setConectado(true);
+        client.subscribe(`/topic/tracking/${PEDIDO.orderId}`, (msg) => {
+          try {
+            const payload = JSON.parse(msg.body);
+            if (payload.lat && payload.lng) setEntregadorPos({ lat: payload.lat, lng: payload.lng });
+            if (payload.eta)                setEta(payload.eta);
+            if (payload.phase === 'PRE_ROUTE') setFase(1);
+            if (payload.phase === 'IN_ROUTE')  setFase(2);
+            if (payload.phase === 'NEXT_STOP') setFase(3);
+          } catch {}
+        });
+      },
+      onDisconnect: () => setConectado(false),
+      onStompError:  () => setConectado(false),
+    });
+
+    client.activate();
+    clientRef.current = client;
+    return () => { client.deactivate(); };
+  }, [fase]);
+
+  // Região do mapa — usa posição do entregador se disponível, senão destino
+  const regiaoBase = {
+    latitude:      entregadorPos?.lat ?? PEDIDO.destinoLat,
+    longitude:     entregadorPos?.lng ?? PEDIDO.destinoLng,
+    latitudeDelta:  0.012,
+    longitudeDelta: 0.012,
+  };
 
   return (
     <View style={s.container}>
       <TopBar title="Acompanhar Entregas" />
 
-      {/* ── Placeholder do mapa ── */}
-      <View style={s.map}>
-        {[...Array(6)].map((_, i) => (
-          <View key={`v${i}`} style={[s.gridLine, s.gridLineV, { left: `${i * 20}%` as any }]} />
-        ))}
-        {[...Array(5)].map((_, i) => (
-          <View key={`h${i}`} style={[s.gridLine, s.gridLineH, { top: `${i * 25}%` as any }]} />
-        ))}
-        <View style={s.liveBadge}>
-          <Text style={{ color: Colors.green, fontWeight: '700', fontSize: FontSize.sm }}>
-            {fase === 1 ? '🟡 EM SEPARAÇÃO' : fase === 2 ? '🔴 AO VIVO' : '📍 PRÓXIMO'}
-          </Text>
-        </View>
-        {/* Ícone central muda por fase */}
-        <Text style={{ fontSize: 48 }}>
-          {fase === 1 ? '📦' : fase === 2 ? '🚚' : '📍'}
-        </Text>
-        {/* TODO: substituir por MapView quando tiver a chave do Google Maps */}
-        {fase === 3 && (
-          <Text style={s.mapNote}>Mapa ao vivo disponível após configuração</Text>
+      {/* Mapa real em todas as fases */}
+      <MapView style={s.map} region={regiaoBase}>
+        {/* Marker do destino (sempre visível) */}
+        <Marker
+          coordinate={{ latitude: PEDIDO.destinoLat, longitude: PEDIDO.destinoLng }}
+          title="Seu endereço"
+        >
+          <View style={s.markerDestino}>
+            <Text style={{ fontSize: 18 }}>🏠</Text>
+          </View>
+        </Marker>
+
+        {/* Marker do entregador (visível nas fases 2 e 3 quando tiver posição) */}
+        {fase >= 2 && entregadorPos && (
+          <Marker
+            coordinate={{ latitude: entregadorPos.lat, longitude: entregadorPos.lng }}
+            title="Entregador"
+            description={`ETA: ${eta}`}
+          >
+            <View style={s.markerEntregador}>
+              <Text style={{ fontSize: 18 }}>🚚</Text>
+            </View>
+          </Marker>
         )}
+      </MapView>
+
+      {/* Badge de status do mapa */}
+      <View style={s.mapStatusBar}>
+        <Text style={s.mapStatusTxt}>
+          {fase === 1
+            ? '🟡 Pedido em separação'
+            : conectado
+            ? '🔴 Rastreamento ao vivo'
+            : '⚪ Conectando...'}
+        </Text>
+        {fase >= 2 && <Text style={s.etaBar}>ETA: {eta}</Text>}
       </View>
 
       <ScrollView contentContainerStyle={s.list}>
 
-        {/* ── Card do pedido ativo ── */}
+        {/* Card do pedido */}
         <View style={[s.card, { borderColor: `${Colors.green}44` }]}>
           <View style={s.cardTop}>
             <View>
@@ -67,11 +127,11 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Badge label={status} />
-              <Text style={s.eta}>{PEDIDO.eta}</Text>
+              <Text style={s.eta}>{eta}</Text>
             </View>
           </View>
 
-          {/* ── Banner de fase ── */}
+          {/* Banner de fase */}
           <View style={s.faseBanner}>
             {fase === 1 && (
               <>
@@ -87,9 +147,7 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
                 <Text style={s.faseIcon}>🚚</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={s.faseTitle}>Entregador em rota</Text>
-                  <Text style={s.faseSub}>
-                    Você é a entrega {PEDIDO.posicaoNaFila} de {PEDIDO.totalEntregas}.
-                  </Text>
+                  <Text style={s.faseSub}>Você é a entrega {PEDIDO.posicaoNaFila} de {PEDIDO.totalEntregas}.</Text>
                 </View>
               </>
             )}
@@ -104,7 +162,7 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
             )}
           </View>
 
-          {/* ── Tracker de etapas ── */}
+          {/* Tracker */}
           <View style={s.tracker}>
             {STEPS.map((step, i) => (
               <React.Fragment key={step}>
@@ -122,7 +180,7 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
           </View>
         </View>
 
-        {/* ── Botões de simulação — remover após integração WebSocket ── */}
+        {/* Simulação de fase — remover após WebSocket estar ativo */}
         <View style={s.card}>
           <Text style={s.simLabel}>Simular fase (remover após integração):</Text>
           <View style={s.simRow}>
@@ -132,15 +190,13 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
                 style={[s.faseBtn, fase === f && s.faseBtnActive]}
                 onPress={() => setFase(f)}
               >
-                <Text style={[s.faseBtnTxt, fase === f && s.faseBtnTxtActive]}>
-                  Fase {f}
-                </Text>
+                <Text style={[s.faseBtnTxt, fase === f && s.faseBtnTxtActive]}>Fase {f}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-        {/* ── Empty state ── */}
+        {/* Empty state */}
         <View style={[s.card, { alignItems: 'center' }]}>
           <Text style={{ color: Colors.muted, fontSize: FontSize.sm, marginBottom: 8 }}>
             Sem outros pedidos ativos
@@ -157,12 +213,13 @@ export function DeliveryScreen({ navigation }: { navigation: any }) {
 const s = StyleSheet.create({
   container:       { flex: 1, backgroundColor: Colors.bg },
 
-  map:             { height: 240, backgroundColor: '#0d1117', alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1, borderBottomColor: Colors.border, position: 'relative', overflow: 'hidden' },
-  gridLine:        { position: 'absolute', backgroundColor: `${Colors.border}44` },
-  gridLineV:       { top: 0, bottom: 0, width: 1 },
-  gridLineH:       { left: 0, right: 0, height: 1 },
-  liveBadge:       { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(10,12,14,0.92)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: `${Colors.green}44` },
-  mapNote:         { position: 'absolute', bottom: 10, color: Colors.muted, fontSize: FontSize.xs },
+  map:             { height: 220, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  markerEntregador:{ backgroundColor: Colors.surface, borderRadius: 20, padding: 5, borderWidth: 2, borderColor: Colors.green },
+  markerDestino:   { backgroundColor: Colors.surface, borderRadius: 20, padding: 5, borderWidth: 2, borderColor: Colors.danger },
+
+  mapStatusBar:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.surface, paddingHorizontal: Spacing.xl, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  mapStatusTxt:    { color: Colors.muted, fontSize: FontSize.xs, fontWeight: '600' },
+  etaBar:          { color: Colors.green, fontSize: FontSize.xs, fontWeight: '800' },
 
   list:            { padding: Spacing.xl, gap: 12 },
   card:            { backgroundColor: Colors.card, borderRadius: Radius.lg, padding: Spacing.md, borderWidth: 1, borderColor: Colors.border },
