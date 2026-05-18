@@ -5,7 +5,7 @@ import { Avatar, Badge } from '../../components/ui/index';
 import { Colors, FontSize, Radius, Spacing } from '../../theme';
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
-import { useAuth } from '@/context/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props { navigation: any; logout: () => void; }
 
@@ -51,7 +51,7 @@ const handleLocToggle = async () => {
         <View style={s.profileCard}>
           <Avatar size={52} letter="O" />
           <View style={{ flex: 1 }}>
-            <Text style={s.profileName}>{user?.name ?? user?.nome ?? 'Usuário'}</Text>
+            <Text style={s.profileName}>{user?.name ??'Usuário'}</Text>
             <Text style={s.profileEmail}>{user?.email ?? ''}</Text>
             <Badge label="Comprador" />
           </View>

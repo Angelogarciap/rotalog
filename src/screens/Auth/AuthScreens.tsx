@@ -11,9 +11,10 @@ import { Colors, FontSize, Radius, Spacing } from '../../theme';
 // ── LOGIN ─────────────────────────────────────────────────────────────────────
 type LoginProps = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 export function LoginScreen({ navigation }: LoginProps) {
+  const [perfilLocal, setPerfilLocal] = useState<'comprador' | 'entregador'>('comprador');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const { login, loading } = useAuth();
+  const { login, loading, setPerfil } = useAuth();
 
   return (
     <ScrollView style={s.scroll} contentContainerStyle={s.container} keyboardShouldPersistTaps="handled">
@@ -23,7 +24,26 @@ export function LoginScreen({ navigation }: LoginProps) {
         <Text style={s.logoSub}>Distribuição inteligente na palma da mão</Text>
       </View>
 
-      <Text style={s.hint}>Entre na sua conta para continuar</Text>
+      {/* Toggle */}
+      <View style={s.toggle}>
+        <TouchableOpacity
+          style={[s.toggleBtn, perfilLocal === 'comprador' && s.toggleBtnActive]}
+          onPress={() => { setPerfilLocal('comprador'); setPerfil('BUYER'); }}
+        >
+          <Text style={[s.toggleTxt, perfilLocal === 'comprador' && s.toggleTxtActive]}>🛒 Comprador</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[s.toggleBtn, perfilLocal === 'entregador' && s.toggleBtnActive]}
+          onPress={() => { setPerfilLocal('entregador'); setPerfil('DRIVER'); }}
+        >
+          <Text style={[s.toggleTxt, perfilLocal === 'entregador' && s.toggleTxtActive]}>🚚 Entregador</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Text style={s.hint}>
+        {perfilLocal === 'comprador' ? 'Entre como comprador para fazer pedidos' : 'Entre como entregador para ver suas rotas'}
+      </Text>
+
       <Input placeholder="E-mail" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
       <Input placeholder="Senha" value={senha} onChangeText={setSenha} secureTextEntry />
 
@@ -42,7 +62,6 @@ export function LoginScreen({ navigation }: LoginProps) {
     </ScrollView>
   );
 }
-
 // ── RECUPERAR SENHA ───────────────────────────────────────────────────────────
 type RecoverProps = NativeStackScreenProps<AuthStackParamList, 'Recover'>;
 export function RecoverScreen({ navigation }: RecoverProps) {
@@ -135,4 +154,9 @@ const s = StyleSheet.create({
   progressBar:  { flex: 1, height: 4, borderRadius: 4 },
   section:      { color: Colors.muted, fontSize: FontSize.sm, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 20 },
   row:          { flexDirection: 'row', gap: 10 },
+  toggle:          { flexDirection: 'row', backgroundColor: Colors.subtle, borderRadius: Radius.lg, padding: 4, marginBottom: 24 },
+toggleBtn:       { flex: 1, paddingVertical: 10, borderRadius: Radius.md, alignItems: 'center' },
+toggleBtnActive: { backgroundColor: Colors.green },
+toggleTxt:       { color: Colors.muted, fontWeight: '700', fontSize: FontSize.sm },
+toggleTxtActive: { color: '#0A0C0E' },
 });
